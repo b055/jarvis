@@ -59,7 +59,6 @@ for index = 1:numberSlices
     indexTimeEnd = (index-1)*hop + windowSize;
     
     vectorFrames(index,:) = x(indexTimeStart: indexTimeEnd);
-    
 end
 
 return

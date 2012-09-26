@@ -46,7 +46,7 @@ alpha = 2^(step/12);
 hopOut = round(alpha*hop);
 
 % Hanning window for overlap-add
-wn = hanning(winSize*2+1);
+wn = hann(winSize*2+1);
 wn = wn(2:2:end);
 
 %% Source file
@@ -77,7 +77,6 @@ phaseCumulative = 0;
 % Initialize previous frame phase
 previousPhase = 0;
 
-debugfft = [];
 for index=1:numberFramesInput
     
 %% Analysis
@@ -90,10 +89,10 @@ for index=1:numberFramesInput
     
     % Get the FFT
     currentFrameWindowedFFT = fft(currentFrameWindowed);
-%    debugfft = [debugfft;currentFrameWindowedFFT];
+    
     % Get the magnitude
     magFrame = abs(currentFrameWindowedFFT);
-    
+   
     % Get the angle
     phaseFrame = angle(currentFrameWindowedFFT);
     
@@ -101,6 +100,7 @@ for index=1:numberFramesInput
 
     % Get the phase difference
     deltaPhi = phaseFrame - previousPhase;
+    
     previousPhase = phaseFrame;
     
     % Remove the expected phase difference
@@ -125,13 +125,12 @@ for index=1:numberFramesInput
     
     % Produce output frame
     outputFrame = real(ifft(outputMag .* exp(j*phaseCumulative)));
-     
+	
     % Save frame that has been processed
     outputy(index,:) = outputFrame .* wn' / sqrt(((winSize/hopOut)/2));
-        
+         
 end
 
-%save debugfft.mat debugfft;
 %% Finalize
 
 % Overlap add in a vector
@@ -139,6 +138,7 @@ outputTimeStretched = fusionFrames(outputy,hopOut);
 
 % Resample with linearinterpolation
 outputTime = interp1((0:(length(outputTimeStretched)-1)),outputTimeStretched,(0:alpha:(length(outputTimeStretched)-1)),'linear');
+alpha
 
 % Return the result
 outputVector = outputTime;
