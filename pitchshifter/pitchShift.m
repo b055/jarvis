@@ -48,7 +48,7 @@ hopOut = round(alpha*hop);
 % Hanning window for overlap-add
 wn = hann(winSize*2+1);
 wn = wn(2:2:end);
-
+size(wn)
 %% Source file
 
 x = inputVector;
@@ -135,10 +135,10 @@ end
 
 % Overlap add in a vector
 outputTimeStretched = fusionFrames(outputy,hopOut);
-
+%save 'timestretchmatlab.txt' outputTimeStretched -ascii;
 % Resample with linearinterpolation
 outputTime = interp1((0:(length(outputTimeStretched)-1)),outputTimeStretched,(0:alpha:(length(outputTimeStretched)-1)),'linear');
-alpha
+size(0:alpha:(length(outputTimeStretched)-1))
 
 % Return the result
 outputVector = outputTime;

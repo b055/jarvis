@@ -104,10 +104,10 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 
 
 		//hard coded the test values ie hop, windowSize and the input length
-		hop = 128;
+		hop = 256;
 		windowSize =1024;
-		xlength =  7411968 + hop*3; // adds zeros to the input... think this is for time scaling sort of
-		step = 10;
+		xlength =  10643328 + hop*3; // adds zeros to the input... think this is for time scaling sort of
+		step = 7;
 		alpha = pow(2,(step/(float)12));
 		hopOut = round(alpha*hop);
 		numberSlices = (((xlength-windowSize)/hop));
@@ -125,7 +125,7 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 		//reads fromt the file
 		FILE *fopen(), *fp;
 
-		fp = fopen("../pitchshifter/test.txt","r"); //hard coded the test input source
+		fp = fopen("input.txt","r"); //hard coded the test input source
 		int index =0;
 		for(index = 0;index<hop*3;index++)
 		{
@@ -162,9 +162,9 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 			process(magPhase,previousPhaseFrame);
 			outputy[index] = synthesis(magPhase);			
 		}
+		
 		timeStretched = fusionFrames(outputy);//should check this timeStretched value before linear interpolation, to see what comes out
 
-		
 		// do the linear interpolation
 		synthesizedOutput = interpolate(timeStretched);
 
@@ -225,25 +225,10 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 		{
 			for(j = timeIndex;j<timeIndex+windowSize;j++)
 			{
-				if(debug == 1)
-				{
-					printf("%d",j);printf("%s"," ");
-					//printf("%d",timeIndex+windowSize);
-					printf("%s","\n");
-				}
 				vectorTime[j] +=framesMatrix[index][j-timeIndex];
 			}
 			timeIndex += hopOut;
 		}
-		
-		
-		if(debug ==1)
-			for(index = 0;index<timeSize;index++)
-			{
-				printf("%f",vectorTime[index]);
-				printf("%s"," ");
-				printf("%s","\n");
-			}
 		return vectorTime;
 	}
 
@@ -263,21 +248,7 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 		{
 			down = floor(temp);
 			up = ceil(temp);
-			if(up == down)
-			{
-			//exact point
-				inter[index] = outputScaled[up];
-			}
-			else if(up>=interlength)
-			{
-			//uses linear extrapolation if the value is out of bounds
-				inter[index] = outputScaled[interlength] + (up-interlength)*(outputScaled[interlength]-outputScaled[interlength-1])/(interlength - interlength-1);
-			}
-			else
-			{
-				//linear interpolation
-				inter[index] = outputScaled[down]+((temp - down)*(outputScaled[up]-outputScaled[down]))/(up-down);
-			}
+			inter[index] = outputScaled[down]+((temp - down)*(outputScaled[up]-outputScaled[down]))/(up-down);
 			if(debug == 1)
 			{
 				printf("%f",inter[index]);
@@ -338,12 +309,20 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 			}
 			//considered getting these from the dude's library, but my head overheated
 			magPhase[index][0] = sqrt(pow(currentFrameFFT[index][0],2) + pow(currentFrameFFT[index][1],2));
-			if(currentFrameFFT[index][1] == 0)
+			if((currentFrameFFT[index][0] >0 && currentFrameFFT[index][1]>=0)||(currentFrameFFT[index][0]<0 && currentFrameFFT[index][1]<=0))
 			{
-				magPhase[index][1] = 0;
+			   magPhase[index][1]= atan((currentFrameFFT[index][1]/currentFrameFFT[index][0]));
+			}
+			else if((currentFrameFFT[index][0]>0 && currentFrameFFT[index][1]<=0)||(currentFrameFFT[index][0] < 0 &&  currentFrameFFT[index][1]>=0))
+			{
+			   magPhase[index][1]= M_PI-atan((currentFrameFFT[index][1]/currentFrameFFT[index][0]));			
 			}
 			else
-				magPhase[index][1]= atan((currentFrameFFT[index][1]/currentFrameFFT[index][0]));
+			{
+		   	 magPhase[index][1]=0; // check this out later
+//			   printf("%s","found an awkward case\n");
+	//		   exit(0);
+			}
 
 		}
 		free (currentFrameWindowed);
@@ -384,7 +363,7 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 			deltaPhiPrimeMod[index] = fmod(deltaPhiPrime[index]+M_PI ,TWO_PI) -M_PI;
 			trueFreq[index] = precompute2*index + deltaPhiPrimeMod[index]/hop;
 
-			phaseCumulative[index] += hopOut+trueFreq[index];
+			phaseCumulative[index] += hopOut*trueFreq[index];
 			if(debug == 1)
 			{
 				printf("%f",phaseCumulative[index]);
@@ -410,7 +389,7 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 		int index;
 		double (*x)[2] = malloc(windowSize*2*sizeof(double)); //frequency domain
 		double (*X)[2] = malloc(windowSize*2*sizeof(double)); //time domain
-		double * magFrame = malloc(windowSize*sizeof(double));
+		double * outputFrame = malloc(windowSize*sizeof(double));
 		for(index = 0; index <windowSize;index++)
 		{
 			x[index][0] = magPhase[index][0]*cos(phaseCumulative[index]);
@@ -429,18 +408,13 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 		
 		for(index = 0;index<windowSize;index++)
 		{
-			magFrame[index] = X[index][0]*(wn[index]/weird2);
-			if(debug ==1)
-			{
-				printf("%lg",magFrame[index]);
-				printf("%s","\n");
-			}
+			outputFrame[index] = (X[index][0])*(wn[index]/weird2);
 		}
 		free(X);
 		free(x);
 		if(debug == 1)
 			printf("%s","finishind the synthesis\n");
-		return magFrame;
+		return outputFrame;
 	}
 
 //think i can stack more stuff into here for optimisation
@@ -449,7 +423,7 @@ static const double wn[1024] ={0.0000,0.0000,0.0001,0.0002,0.0002,0.0003,0.0005,
 		//values use over and over in the loop, should probably make them global
 		weird = sqrt(((windowSize/(float)hop)/2));
 		weird2 = sqrt(((windowSize/(float)hopOut)/2));
-		precompute2 = TWO_PI/windowSize;
+		precompute2 = TWO_PI/(float)windowSize;
 		precompute1 = hop * precompute2;
 	}
 
